@@ -1,23 +1,11 @@
 import numpy as np
 import pandas as pd
-from utils.masking import normalization, inormalization
+from utils import normalization, inormalization
 
 
 class DataAcquire:
     def __init__(self, path, data_name, disting, file_id: list, ratio, target_line, input_line, in_len,
                  del_mode=0, del_time=[4, 20]):
-        """
-
-        :param path: 数据集路径 示例：'./dataset'
-        :param data_name: 数据集名称 示例：'HangZ'
-        :param disting: 数据集分辨率 示例：'1h'
-        :param file_id: 数据集文件序号 list 示例：[0, 1, 2]
-        :param ratio：训练集、验证集、测试集比例 示例：[7, 1, 2]
-        :param target_line: 预测列标题 list 可包含多列 示例：['GHI']
-        :param input_line: 输入列标题 list 可包含多列 示例：['GHI']
-        :param del_mode: 删除数据模式 0:全部保留；1:删除所有GHI为0的数据；2:删除制定范围内数据
-        :param del_time: 当del_mode==2时， 保留数据范围[a, b)
-        """
 
         def _err(del_mode, del_time):
             if del_mode not in [0, 1, 2]:

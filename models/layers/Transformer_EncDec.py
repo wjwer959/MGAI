@@ -1,5 +1,6 @@
 import torch.nn as nn
 import torch.nn.functional as F
+import torch
 
 
 class ConvLayer(nn.Module):
@@ -35,9 +36,9 @@ class EncoderLayer(nn.Module):
         self.dropout = nn.Dropout(dropout)
         self.activation = F.relu if activation == "relu" else F.gelu
 
-    def forward(self, x, attn_mask=None):
+    def forward(self, x, cn, attn_mask=None):
         new_x, attn = self.attention(
-            x, x, x,
+            cn, x, x, x,
             attn_mask=attn_mask
         )
         x = x + self.dropout(new_x)
@@ -56,12 +57,12 @@ class Encoder(nn.Module):
         self.conv_layers = nn.ModuleList(conv_layers) if conv_layers is not None else None
         self.norm = norm_layer
 
-    def forward(self, x, attn_mask=None):
+    def forward(self, x, cn, attn_mask=None):
         # x [B, L, D]
         attns = []
         if self.conv_layers is not None:
             for attn_layer, conv_layer in zip(self.attn_layers, self.conv_layers):
-                x, attn = attn_layer(x, attn_mask=attn_mask)
+                x, attn = attn_layer(x, cn, attn_mask=attn_mask)
                 x = conv_layer(x)
                 attns.append(attn)
             x, attn = self.attn_layers[-1](x)
@@ -128,3 +129,16 @@ class Decoder(nn.Module):
         if self.projection is not None:
             x = self.projection(x)
         return x
+
+class MultiScaleConvolution(nn.Module):
+    def __init__(self, input_dim, output_dim, grain_num):
+        super(MultiScaleConvolution, self).__init__()
+        kernel_sizes = [1, 3, 5, 7, 9]
+        self.convolutions = nn.ModuleList([
+            nn.Conv1d(input_dim, output_dim, kernel_size=kernel_sizes[k], padding=(k - 1) // 2) for k in range(grain_num)
+        ])
+
+    def forward(self, x):
+
+        outputs = [conv(x) for conv in self.convolutions]
+        return torch.cat(outputs, dim=-1)

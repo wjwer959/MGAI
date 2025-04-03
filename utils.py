@@ -1,6 +1,7 @@
 import torch
 import numpy as np
 from datetime import datetime
+import random
 
 class TriangularCausalMask():
     def __init__(self, B, L, device="cpu"):
@@ -27,7 +28,7 @@ class ProbMask():
         return self._mask
 
 
-def normalization(data):                   # 归一化
+def normalization(data):
     if len(data.shape) == 1:
         data = data.reshape(-1, 1)
     norm = np.zeros((2, data.shape[1]))
@@ -40,7 +41,7 @@ def normalization(data):                   # 归一化
     return data_new, norm
 
 
-def inormalization(data, norm):           # 逆归一化
+def inormalization(data, norm):
     if len(data.shape) == 1:
         data = data.reshape(-1, 1)
     if data.shape[1] != norm.shape[1]:
@@ -50,21 +51,6 @@ def inormalization(data, norm):           # 逆归一化
         for j in range(data.shape[0]):
             data_new[j, i] = data[j, i] * (norm[0, i] - norm[1, i]) + norm[1, i]
     return data_new
-
-
-def model_type(model_name):
-    '''
-    if model_name[-5:] in 'former':
-        m_t = 0
-    elif model_name in ['lstm', 'rnn', 'gru', 'lstnet']:
-        m_t = 1
-    else:
-        raise ZeroDivisionError('\"model_name\" is wrong')
-    return m_t
-    '''
-    return 1 if model_name == 'deepar' else 0
-
-
 
 def par_inspect(coding_name, shifty_par):
     mode_dic = {'local_coding_mode': [0, 1, '0', '1'], 'global_coding_mode': [0, 1, 2, 3, '0', '1', '2', '3']}
@@ -79,35 +65,6 @@ def par_inspect(coding_name, shifty_par):
     elif type(shifty_par[coding_name]) == str:
         pass
     return shifty_par
-
-
-def purification_par(model_name, shifty_par):
-    model_par = {
-        'transformer': ['optimizer', 'loss', 'lr', 'dropout', 'activation', 'batch_size',
-                        'in_len', 'd_model_1', 'label_len', 'n_heads', 'e_layers', 'd_layers',
-                        'local_coding_mode', 'global_coding_mode'],
-        'informer':    ['optimizer', 'loss', 'lr', 'dropout', 'activation', 'batch_size',
-                        'in_len', 'd_model_1', 'factor', 'label_len', 'n_heads', 'e_layers', 'd_layers',
-                        'local_coding_mode', 'global_coding_mode'],
-        'segformer': ['optimizer', 'loss', 'lr', 'dropout', 'activation', 'batch_size',
-                      'in_len', 'd_model_1', 'label_len', 'n_heads', 'e_layers', 'd_layers',
-                      'local_coding_mode', 'global_coding_mode'],
-        'lstm':        ['optimizer', 'loss', 'lr', 'dropout', 'activation', 'batch_size',
-                        'in_len', 'd_model_1', 'num_layers', 'n_heads', 'label_len'],
-        'lstnet':      ['optimizer', 'loss', 'lr', 'dropout', 'activation', 'batch_size',
-                      'in_len', 'd_model_1', 'label_len', 'n_heads', 'e_layers', 'd_layers',
-                      'local_coding_mode', 'global_coding_mode'],
-        'deepar': ['optimizer', 'lr', 'dropout', 'activation', 'n_heads', 'd_model_1', 'batch_size',
-                     'in_len', 'd_model_1', 'label_len', 'factor', 'label_len', 'num_layers'],
-
-    }
-    for i in ['local_coding_mode', 'global_coding_mode']:
-        if i in model_par[model_name]:
-            shifty_par = par_inspect(i, shifty_par)
-
-    par_out = {key: shifty_par[key] for key in model_par[model_name]}
-    return par_out
-
 
 def par_processing(certain_par, shifty_par):
     par_op = {}
@@ -141,6 +98,11 @@ def get_step(certain_par):
     else:
         ZeroDivisionError("Please specify parameter \"step_len\"")
     return certain_par
+
+def generate_random_list(length, min_val, max_val):
+    return [random.randint(min_val, max_val) for _ in range(length)]
+
+
 
 
 

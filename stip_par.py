@@ -1,13 +1,10 @@
 import optuna
 import scipy.io as sio
-import pandas as pd
-import time
-import numpy as np
 import os
-from utils.masking import model_type, par_processing, purification_par, get_step
+from utils import  par_processing, purification_par, get_step
 
 from exp_main import exp_fit
-from utils.masking import get_time
+from utils import get_time
 
 
 class OptunaPar:
@@ -17,18 +14,17 @@ class OptunaPar:
         self.par = par
         self.opt_par = opt_par
         self.n_trial = par['n_trial']
-        # self.model_type = model_type(par['model_name'])        # 0:former  1:rnn
 
 
     def fit_(self, trial):
-        '''if self.par['d_model_1'] >= self.par['in_len'] or self.par['label_len'] > self.par['in_len']:
-            raise optuna.exceptions.TrialPruned()'''
         loss_best = 100.0
         flag_max = 5
         flag = 0
 
         for epoch in range(2000):
             self.fit.train(epoch)
+            if epoch >= 1:
+                self.fit.swo()
             loss = self.fit.val()
             if epoch >= 10:
                 if loss < loss_best:
@@ -72,6 +68,7 @@ class OptunaPar:
                                                                                       self.opt_par[par_][1])
                 else:
                     self.par[par_] = trial.suggest_categorical(par_, self.opt_par[par_])
+        self.par['n_heads'] = self.par['grain_num'] * self.par['grain_layer']
         self.par['d_model'] = self.par['d_model_1'] * self.par['n_heads']
         if 'local_coding_mode' in self.par.keys():
             self.par['coding_mode'] = self.par['local_coding_mode'] + self.par['global_coding_mode']
@@ -81,7 +78,7 @@ class OptunaPar:
 
     def run(self):
         best_par = self.par
-        study = optuna.create_study(direction='minimize')      #   , storage="sqlite:///db.sqlite3")
+        study = optuna.create_study(direction='minimize')
         study.optimize(self.objective, n_trials=self.par['n_trial'])
         pruned_trials = [t for t in study.trials if t.state == optuna.trial.TrialState.PRUNED]
         complete_trials = [t for t in study.trials if t.state == optuna.trial.TrialState.COMPLETE]
@@ -117,16 +114,18 @@ class AssignPar:
         if 'local_coding_mode' in self.par.keys():
             self.par['coding_mode'] = self.par['local_coding_mode'] + self.par['global_coding_mode']
         if 'd_model_1' in self.par.keys():
+            self.par['n_heads'] = self.par['grain_num'] * self.par['grain_layer']
             self.par['d_model'] = self.par['d_model_1'] * self.par['n_heads']
         fit = exp_fit(self.par)
         loss_best = 100.0
         flag_max = 5
         flag = 0
-        LOSS_FILE = []
+
         for epoch in range(2000):
             fit.train(epoch)
+            if epoch >= 1:
+                fit.swo()
             loss = fit.val()
-            LOSS_FILE.append(loss)
             # fit.test()
             if epoch >= 10:
                 if loss < loss_best:
@@ -139,8 +138,6 @@ class AssignPar:
                 if flag >= flag_max:
                     break
         print('best_epoch: {}, best_loss: {}'.format(best_epoch, loss_best))
-        df = pd.DataFrame(LOSS_FILE, columns=['Value'])
-        df.to_csv('./' + str(int(time.time())) + '.csv', index=False, encoding='utf-8')
         best_fit.test(self.i)
 
 

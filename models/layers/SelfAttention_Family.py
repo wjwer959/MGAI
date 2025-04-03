@@ -3,7 +3,7 @@ import torch.nn as nn
 
 import numpy as np
 from math import sqrt
-from utils.masking import TriangularCausalMask, ProbMask
+from utils import TriangularCausalMask, ProbMask
 
 
 class FullAttention(nn.Module):
@@ -37,9 +37,8 @@ class FullAttention(nn.Module):
 
 
 class ProbAttention(nn.Module):
-    def __init__(self, mask_flag=True, factor=5, scale=None, attention_dropout=0.1, output_attention=False):
+    def __init__(self, mask_flag=True, scale=None, attention_dropout=0.1, output_attention=False):
         super(ProbAttention, self).__init__()
-        self.factor = factor
         self.scale = scale
         self.mask_flag = mask_flag
         self.output_attention = output_attention
@@ -98,7 +97,7 @@ class ProbAttention(nn.Module):
         else:
             return (context_in, None)
 
-    def forward(self, queries, keys, values, attn_mask):
+    def forward(self, factor, queries, keys, values, attn_mask):
         B, L_Q, H, D = queries.shape
         _, L_K, _, _ = keys.shape
 
@@ -106,8 +105,8 @@ class ProbAttention(nn.Module):
         keys = keys.transpose(2, 1)
         values = values.transpose(2, 1)
 
-        U_part = self.factor * np.ceil(np.log(L_K)).astype('int').item()  # c*ln(L_k)
-        u = self.factor * np.ceil(np.log(L_Q)).astype('int').item()  # c*ln(L_q)
+        U_part = factor * np.ceil(np.log(L_K)).astype('int').item()  # c*ln(L_k)
+        u = factor * np.ceil(np.log(L_Q)).astype('int').item()  # c*ln(L_q)
 
         U_part = U_part if U_part < L_K else L_K
         u = u if u < L_Q else L_Q
@@ -141,7 +140,7 @@ class AttentionLayer(nn.Module):
         self.out_projection = nn.Linear(d_values * n_heads, d_model)
         self.n_heads = n_heads
 
-    def forward(self, queries, keys, values, attn_mask):
+    def forward(self, factor, queries, keys, values, attn_mask):
         B, L, _ = queries.shape
         _, S, _ = keys.shape
         H = self.n_heads
@@ -151,6 +150,7 @@ class AttentionLayer(nn.Module):
         values = self.value_projection(values).view(B, S, H, -1)
 
         out, attn = self.inner_attention(
+            factor,
             queries,
             keys,
             values,
